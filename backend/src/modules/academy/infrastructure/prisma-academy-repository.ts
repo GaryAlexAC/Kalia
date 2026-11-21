@@ -1,15 +1,21 @@
 import { Prisma, type PrismaClient } from "../../../generated/prisma/client.js";
-import { AppError } from "../../../shared/domain/app-error.js";
 import { prisma } from "../../../shared/infrastructure/prisma.js";
 import type {
   AcademyRepository,
-  CrearEstudianteData,
-  CrearInsigniaData,
   CrearProgresoData,
 } from "../domain/academy-repository.js";
 import type { Materia, XpPorMateria } from "../domain/academy.js";
 
 type DatabaseClient = PrismaClient | Prisma.TransactionClient;
+
+const publicStudentSelect = {
+  id: true,
+  nombre: true,
+  email: true,
+  nivel: true,
+  xpTotal: true,
+  creadoEn: true,
+} as const;
 
 export class PrismaAcademyRepository implements AcademyRepository {
   constructor(private readonly db: DatabaseClient = prisma) {}
@@ -33,17 +39,8 @@ export class PrismaAcademyRepository implements AcademyRepository {
     });
   }
 
-  async createStudent(data: CrearEstudianteData) {
-    try {
-      return await this.db.estudiante.create({ data });
-    } catch (error) {
-      this.throwUniqueError(error, "Ya existe un estudiante con ese email.", "STUDENT_ALREADY_EXISTS");
-      throw error;
-    }
-  }
-
   findStudent(id: number) {
-    return this.db.estudiante.findUnique({ where: { id } });
+    return this.db.estudiante.findUnique({ where: { id }, select: publicStudentSelect });
   }
 
   listStudentProgress(studentId: number) {
@@ -62,6 +59,7 @@ export class PrismaAcademyRepository implements AcademyRepository {
     return this.db.estudiante.update({
       where: { id: studentId },
       data: { xpTotal: { increment: xp } },
+      select: publicStudentSelect,
     });
   }
 
@@ -69,15 +67,6 @@ export class PrismaAcademyRepository implements AcademyRepository {
     return this.db.insignia.findMany({
       orderBy: [{ materia: "asc" }, { xpRequerido: "asc" }],
     });
-  }
-
-  async createBadge(data: CrearInsigniaData) {
-    try {
-      return await this.db.insignia.create({ data });
-    } catch (error) {
-      this.throwUniqueError(error, "Ya existe una insignia con ese código.", "BADGE_ALREADY_EXISTS");
-      throw error;
-    }
   }
 
   async listStudentBadgeIds(studentId: number) {
@@ -123,11 +112,5 @@ export class PrismaAcademyRepository implements AcademyRepository {
       orderBy: [{ xpTotal: "desc" }, { id: "asc" }],
       take: limit,
     });
-  }
-
-  private throwUniqueError(error: unknown, message: string, code: string) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new AppError(message, 409, code);
-    }
   }
 }

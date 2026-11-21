@@ -63,6 +63,71 @@ Los valores de `nivel` y `materia` enviados por el cliente no distinguen mayúsc
 }
 ```
 
+## Autenticación de estudiantes
+
+```ts
+type AuthStudent = {
+  id: number;
+  nombre: string;
+  email: string;
+  nivel: Nivel;
+  xpTotal: number;
+  creadoEn: string;
+};
+
+type AuthSession = {
+  accessToken: string;
+  tokenType: "Bearer";
+  expiresIn: 86400;
+  estudiante: AuthStudent;
+};
+```
+
+### `POST /api/auth/register`
+
+Crea un estudiante, almacena su contraseña con `scrypt` y abre una sesión.
+
+```ts
+type RegisterBody = {
+  nombre: string;   // 1..120
+  email: string;    // email válido, máximo 320
+  password: string; // 8..128
+  nivel?: Nivel;    // EXPLORADORES por defecto
+};
+```
+
+Respuesta `201`: `AuthSession`.
+
+Errores específicos: `409 STUDENT_ALREADY_EXISTS`.
+
+### `POST /api/auth/login`
+
+```ts
+type LoginBody = {
+  email: string;
+  password: string;
+};
+```
+
+Respuesta `200`: `AuthSession`.
+
+Error específico: `401 INVALID_CREDENTIALS`.
+
+### `GET /api/auth/me`
+
+Requiere el encabezado:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+Respuesta `200`: `AuthStudent`.
+
+Errores específicos: `401 AUTH_REQUIRED`, `401 INVALID_TOKEN`.
+
+El frontend debe conservar el token de forma segura y enviarlo en el encabezado `Authorization`. El token expira después de 24 horas.
+Registro y login pueden responder `429 TOO_MANY_REQUESTS` después de demasiados intentos desde una misma IP.
+
 ## Salud
 
 ### `GET /health`
@@ -155,31 +220,17 @@ Respuesta `200`: `Actividad[]`.
 
 ## Estudiantes
 
-### `POST /api/estudiantes`
-
-```ts
-type CreateStudentBody = {
-  nombre: string; // 1..120
-  email?: string; // email válido, máximo 320, único
-  nivel?: Nivel;  // EXPLORADORES por defecto
-};
-```
-
-Respuesta `201`: `Estudiante`.
-
-Error específico: `409 STUDENT_ALREADY_EXISTS`.
-
 ### `GET /api/estudiantes/:id`
 
-`id` debe ser un entero positivo.
+`id` debe ser un entero positivo. Requiere `Authorization: Bearer <accessToken>` y el `id` debe coincidir con el estudiante autenticado.
 
 Respuesta `200`: `Estudiante`.
 
-Error específico: `404 STUDENT_NOT_FOUND`.
+Errores específicos: `401 AUTH_REQUIRED`, `401 INVALID_TOKEN`, `403 FORBIDDEN`, `404 STUDENT_NOT_FOUND`.
 
 ### `GET /api/estudiantes/:id/progreso`
 
-Devuelve el historial más reciente primero. Un estudiante sin progreso o un identificador aún no registrado produce un arreglo vacío.
+Devuelve el historial más reciente primero. Requiere el Bearer token del mismo estudiante. Un estudiante sin progreso produce un arreglo vacío.
 
 Respuesta `200`:
 
@@ -194,6 +245,7 @@ type StudentProgressResponse = Array<Progreso & {
 ### `POST /api/progreso`
 
 Registra una actividad completada, incrementa el XP total y concede insignias en una sola transacción. `actividad` puede ser el `slug` o el título exacto del catálogo.
+Requiere `Authorization: Bearer <accessToken>` y `estudianteId` debe pertenecer al token.
 
 ```ts
 type RecordProgressBody = {
@@ -213,7 +265,7 @@ type RecordProgressResponse = {
 };
 ```
 
-Errores específicos: `404 ACTIVITY_NOT_FOUND`, `404 STUDENT_NOT_FOUND`.
+Errores específicos: `401 AUTH_REQUIRED`, `401 INVALID_TOKEN`, `403 FORBIDDEN`, `404 ACTIVITY_NOT_FOUND`, `404 STUDENT_NOT_FOUND`.
 
 Cada finalización crea un registro nuevo. El cliente debe evitar enviar dos veces el mismo evento.
 
@@ -223,25 +275,9 @@ Cada finalización crea un registro nuevo. El cliente debe evitar enviar dos vec
 
 Respuesta `200`: `Insignia[]`, ordenadas por materia y XP requerido.
 
-### `POST /api/insignias`
-
-Este endpoint debe restringirse a administradores cuando exista autenticación.
-
-```ts
-type CreateBadgeBody = {
-  codigo: string;          // 1..100, único
-  nombre: string;          // 1..120
-  descripcion?: string;    // 0..500, "" por defecto
-  materia?: Materia | null; // null usa XP total
-  xpRequerido: number;     // entero positivo
-};
-```
-
-Respuesta `201`: `Insignia`.
-
-Error específico: `409 BADGE_ALREADY_EXISTS`.
-
 ### `GET /api/estudiantes/:id/insignias`
+
+Requiere el Bearer token del mismo estudiante.
 
 Respuesta `200`:
 
@@ -259,7 +295,7 @@ Error específico: `404 STUDENT_NOT_FOUND`.
 
 ### `POST /api/estudiantes/:id/insignias/revisar`
 
-Reevalúa el catálogo, útil después de crear una insignia. No recibe cuerpo.
+Reevalúa el catálogo, útil después de crear una insignia. No recibe cuerpo y requiere el Bearer token del mismo estudiante.
 
 Respuesta `200`:
 

@@ -59,7 +59,18 @@ GET http://localhost:4000/api/videos?limit=10&cursor=<nextCursor>
 El seed carga 12 actividades y 10 insignias. Ejemplo de flujo:
 
 ```bash
-curl -X POST http://localhost:4000/api/estudiantes -H "Content-Type: application/json" -d '{"nombre":"Ana"}'
+curl -X POST http://localhost:4000/api/auth/register -H "Content-Type: application/json" -d '{"nombre":"Ana","email":"ana@example.com","password":"ClaveSegura2026!"}'
 curl http://localhost:4000/api/actividades?materia=matematicas
-curl -X POST http://localhost:4000/api/progreso -H "Content-Type: application/json" -d '{"estudianteId":1,"actividad":"Construye tu pizza","nivel":"exploradores","xp":50}'
+curl -X POST http://localhost:4000/api/progreso -H "Content-Type: application/json" -H "Authorization: Bearer <accessToken>" -d '{"estudianteId":1,"actividad":"Construye tu pizza","nivel":"exploradores","xp":50}'
 ```
+
+## Cuentas demo
+
+El seed crea dos estudiantes con progreso, XP e insignias asociados:
+
+| Estudiante | Email | Contraseña |
+|---|---|---|
+| Ana Torres | `ana.demo@kalia.edu` | `AnaDemo2026!` |
+| Mateo Ruiz | `mateo.demo@kalia.edu` | `MateoDemo2026!` |
+
+El frontend debe registrar e iniciar sesión mediante `/api/auth/register` y `/api/auth/login`. Los contratos están en [`docs/http-contracts.md`](docs/http-contracts.md).

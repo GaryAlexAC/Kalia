@@ -1,9 +1,5 @@
 import { AppError } from "../../../shared/domain/app-error.js";
-import type {
-  CrearEstudianteData,
-  CrearInsigniaData,
-  AcademyRepository,
-} from "../domain/academy-repository.js";
+import type { AcademyRepository } from "../domain/academy-repository.js";
 import type { Materia, Nivel } from "../domain/academy.js";
 import { selectEarnedBadges } from "../domain/badge-awarder.js";
 
@@ -12,10 +8,6 @@ export class AcademyService {
 
   listActivities(materia?: Materia) {
     return this.repository.listActivities(materia);
-  }
-
-  createStudent(data: CrearEstudianteData) {
-    return this.repository.createStudent(data);
   }
 
   async getStudent(id: number) {
@@ -62,10 +54,6 @@ export class AcademyService {
 
   listBadges() {
     return this.repository.listBadges();
-  }
-
-  createBadge(data: CrearInsigniaData) {
-    return this.repository.createBadge(data);
   }
 
   async getStudentBadges(studentId: number) {

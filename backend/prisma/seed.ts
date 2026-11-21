@@ -1,4 +1,5 @@
 import { prisma } from "../src/shared/infrastructure/prisma.js";
+import { ScryptPasswordHasher } from "../src/modules/auth/infrastructure/scrypt-password-hasher.js";
 
 const activities = [
   ["matematicas/01-construye-tu-pizza", "Construye tu pizza", "MATEMATICAS"],
@@ -44,5 +45,86 @@ for (const [codigo, nombre, descripcion, materia, xpRequerido] of badges) {
   });
 }
 
-console.log(`Actividades: ${activities.length}; insignias: ${badges.length}`);
+const demoStudents = [
+  {
+    nombre: "Ana Torres",
+    email: "ana.demo@kalia.edu",
+    password: "AnaDemo2026!",
+    nivel: "EXPLORADORES" as const,
+    progress: [
+      ["matematicas/01-construye-tu-pizza", 50],
+      ["lectura/01-detective-de-historias", 100],
+    ] as const,
+  },
+  {
+    nombre: "Mateo Ruiz",
+    email: "mateo.demo@kalia.edu",
+    password: "MateoDemo2026!",
+    nivel: "CONSTRUCTORES" as const,
+    progress: [
+      ["ciencias/01-explorador-espacial", 120],
+      ["matematicas/02-el-numero-misterioso", 80],
+    ] as const,
+  },
+] as const;
+
+const passwordHasher = new ScryptPasswordHasher();
+const badgeCatalog = await prisma.insignia.findMany();
+
+for (const demo of demoStudents) {
+  const passwordHash = await passwordHasher.hash(demo.password);
+  await prisma.$transaction(async (transaction) => {
+    const student = await transaction.estudiante.upsert({
+      where: { email: demo.email },
+      update: { nombre: demo.nombre, nivel: demo.nivel, passwordHash },
+      create: {
+        nombre: demo.nombre,
+        email: demo.email,
+        nivel: demo.nivel,
+        passwordHash,
+      },
+    });
+
+    await transaction.estudianteInsignia.deleteMany({ where: { estudianteId: student.id } });
+    await transaction.progreso.deleteMany({ where: { estudianteId: student.id } });
+
+    for (const [slug, xp] of demo.progress) {
+      const activity = await transaction.actividad.findUniqueOrThrow({ where: { slug } });
+      await transaction.progreso.create({
+        data: {
+          estudianteId: student.id,
+          actividadId: activity.id,
+          nivel: demo.nivel,
+          xp,
+        },
+      });
+    }
+
+    const progress = await transaction.progreso.findMany({
+      where: { estudianteId: student.id },
+      select: { xp: true, actividad: { select: { materia: true } } },
+    });
+    const totalXp = progress.reduce((total, item) => total + item.xp, 0);
+    const xpBySubject = { MATEMATICAS: 0, LECTURA: 0, CIENCIAS: 0 };
+    for (const item of progress) xpBySubject[item.actividad.materia] += item.xp;
+    await transaction.estudiante.update({
+      where: { id: student.id },
+      data: { xpTotal: totalXp },
+    });
+
+    const earnedBadgeIds = badgeCatalog
+      .filter((badge) => {
+        const currentXp = badge.materia ? xpBySubject[badge.materia] : totalXp;
+        return currentXp >= badge.xpRequerido;
+      })
+      .map(({ id }) => id);
+    await transaction.estudianteInsignia.createMany({
+      data: earnedBadgeIds.map((insigniaId) => ({ estudianteId: student.id, insigniaId })),
+    });
+  });
+}
+
+console.log(
+  `Actividades: ${activities.length}; insignias: ${badges.length}; estudiantes demo: ${demoStudents.length}`,
+);
 await prisma.$disconnect();

@@ -40,6 +40,7 @@ model Estudiante {
   id        Int                  @id @default(autoincrement())
   nombre    String               @db.VarChar(120)
   email     String?              @unique @db.VarChar(320)
+  passwordHash String?           @map("password_hash") @db.VarChar(255)
   nivel     Nivel                @default(EXPLORADORES)
   xpTotal   Int                  @default(0) @map("xp_total")
   creadoEn  DateTime             @default(now()) @map("creado_en")
