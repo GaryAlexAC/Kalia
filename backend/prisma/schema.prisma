@@ -23,3 +23,75 @@ model Video {
   @@index([published, createdAt])
   @@map("videos")
 }
+
+enum Nivel {
+  EXPLORADORES
+  CONSTRUCTORES
+  AVANZADOS
+}
+
+enum Materia {
+  MATEMATICAS
+  LECTURA
+  CIENCIAS
+}
+
+model Estudiante {
+  id        Int                  @id @default(autoincrement())
+  nombre    String               @db.VarChar(120)
+  email     String?              @unique @db.VarChar(320)
+  nivel     Nivel                @default(EXPLORADORES)
+  xpTotal   Int                  @default(0) @map("xp_total")
+  creadoEn  DateTime             @default(now()) @map("creado_en")
+  progresos Progreso[]
+  insignias EstudianteInsignia[]
+
+  @@map("estudiantes")
+}
+
+model Actividad {
+  id        Int        @id @default(autoincrement())
+  slug      String     @unique @db.VarChar(160)
+  titulo    String     @db.VarChar(160)
+  materia   Materia
+  progresos Progreso[]
+
+  @@map("actividades")
+}
+
+model Progreso {
+  id           Int        @id @default(autoincrement())
+  estudianteId Int        @map("estudiante_id")
+  actividadId  Int        @map("actividad_id")
+  nivel        Nivel
+  xp           Int
+  completadoEn DateTime   @default(now()) @map("completado_en")
+  estudiante   Estudiante @relation(fields: [estudianteId], references: [id], onDelete: Cascade)
+  actividad    Actividad  @relation(fields: [actividadId], references: [id])
+
+  @@index([estudianteId])
+  @@map("progresos")
+}
+
+model Insignia {
+  id          Int                  @id @default(autoincrement())
+  codigo      String               @unique @db.VarChar(100)
+  nombre      String               @db.VarChar(120)
+  descripcion String               @db.VarChar(500)
+  materia     Materia?
+  xpRequerido Int                  @map("xp_requerido")
+  estudiantes EstudianteInsignia[]
+
+  @@map("insignias")
+}
+
+model EstudianteInsignia {
+  estudianteId Int        @map("estudiante_id")
+  insigniaId   Int        @map("insignia_id")
+  obtenidaEn   DateTime   @default(now()) @map("obtenida_en")
+  estudiante   Estudiante @relation(fields: [estudianteId], references: [id], onDelete: Cascade)
+  insignia     Insignia   @relation(fields: [insigniaId], references: [id], onDelete: Cascade)
+
+  @@id([estudianteId, insigniaId])
+  @@map("estudiante_insignias")
+}

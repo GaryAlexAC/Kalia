@@ -1,6 +1,8 @@
 # 02Track Backend
 
-API local construida con Express, TypeScript, Prisma y PostgreSQL. El módulo de videos usa arquitectura hexagonal y el reproductor oficial de TikTok.
+API local construida con Express, TypeScript, Prisma y PostgreSQL. Los módulos de videos y academia usan arquitectura hexagonal. Los videos se reproducen con el reproductor oficial de TikTok; la academia administra actividades, estudiantes, XP, insignias y ranking.
+
+Los contratos HTTP completos para integrar otro frontend están en [`docs/http-contracts.md`](docs/http-contracts.md).
 
 ## Flujo
 
@@ -14,8 +16,10 @@ API local construida con Express, TypeScript, Prisma y PostgreSQL. El módulo de
 
 ```bash
 npm install
+cp .env.example .env
 npm run db:up
-npm run prisma:migrate -- --name init
+npm run prisma:migrate
+npm run db:seed
 npm run dev
 ```
 
@@ -48,4 +52,14 @@ Para la siguiente página, envía el cursor recibido:
 
 ```http
 GET http://localhost:4000/api/videos?limit=10&cursor=<nextCursor>
+```
+
+## Academia
+
+El seed carga 12 actividades y 10 insignias. Ejemplo de flujo:
+
+```bash
+curl -X POST http://localhost:4000/api/estudiantes -H "Content-Type: application/json" -d '{"nombre":"Ana"}'
+curl http://localhost:4000/api/actividades?materia=matematicas
+curl -X POST http://localhost:4000/api/progreso -H "Content-Type: application/json" -d '{"estudianteId":1,"actividad":"Construye tu pizza","nivel":"exploradores","xp":50}'
 ```

@@ -6,11 +6,14 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
+    "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "verify:academy": "tsx scripts/verify-academy.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down"
   },
