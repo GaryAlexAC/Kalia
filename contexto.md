@@ -4,7 +4,7 @@
 
 02Track es una plataforma EdTech orientada a mejorar el aprendizaje y la enseñanza en Guatemala. Busca conectar a estudiantes, profesores, tutores y familias alrededor de una situación concreta de una clase real.
 
-La propuesta se enfoca en estudiantes de aproximadamente 15 años que necesitan refuerzo en matemáticas, lectura o ciencias, así como en profesores que pueden tener hasta 40 alumnos y necesitan identificar rápidamente quién se está quedando atrás y en qué habilidad.
+La propuesta busca atender a estudiantes de educación básica que necesitan refuerzo en matemáticas, lectura o ciencias, así como a profesores que pueden tener hasta 40 alumnos y necesitan identificar rápidamente quién se está quedando atrás y en qué habilidad. El segmento inicial propuesto es 1.º o 2.º Básico, pero debe validarse antes de cerrar el alcance.
 
 ## Problema
 
@@ -33,11 +33,53 @@ Detrás de estos resultados existen cuatro problemas principales:
 
 La plataforma ofrece sesiones diarias de aproximadamente cinco minutos, retroalimentación inmediata y agrupación por habilidades. No pretende reemplazar al profesor, sino ayudarlo a convertir una clase numerosa en grupos accionables y ofrecer refuerzo personalizado sin revisar manualmente cada ejercicio.
 
+## El hábito como mecanismo de intervención
+
+La hipótesis central de 02Track es que una micropráctica frecuente puede ayudar a prevenir la acumulación de pequeños vacíos de aprendizaje. El hábito no sustituye una buena explicación ni resuelve por sí solo el rezago: crea oportunidades constantes para practicar, detectar errores y actuar a tiempo.
+
+### Relación con el problema real
+
+- **Interrumpe la acumulación de vacíos:** una práctica breve y frecuente permite observar dificultades antes de que el siguiente tema se construya sobre ellas.
+- **Combate el estudio pasivo:** promueve recuperación activa y práctica distribuida en lugar de concentrar todo el estudio antes de un examen.
+- **Produce señales para el profesor:** cada sesión genera información reciente sobre constancia, respuestas y habilidades que requieren apoyo.
+- **Facilita el acompañamiento familiar:** la familia no necesita dominar la materia; puede apoyar la rutina, reconocer el esfuerzo y observar un resumen sencillo.
+- **Se adapta a restricciones reales:** una actividad de cinco minutos en el teléfono puede requerir menos tiempo y conectividad que una sesión extensa.
+
+### Ciclo de hábito propuesto
+
+1. **Señal:** recordatorio en un momento acordado o indicación del profesor durante la clase.
+2. **Acción:** micropráctica de aproximadamente cinco minutos sobre una habilidad concreta.
+3. **Retroalimentación:** explicación inmediata de aciertos, errores y siguiente paso.
+4. **Recompensa:** progreso visible, reconocimiento de constancia o avance de la racha.
+5. **Seguimiento:** resumen simple para el estudiante, el profesor y, cuando corresponda, la familia.
+
+La racha debe servir como apoyo a la constancia, no como castigo. Perder un día no debe borrar el aprendizaje ni desmotivar al estudiante. También deben reconocerse la mejora, el esfuerzo y el dominio de habilidades, no solamente la cantidad de días consecutivos.
+
+### Hipótesis que deben validarse
+
+- Una sesión de cinco minutos es suficientemente corta para repetirse y suficientemente útil para generar evidencia de aprendizaje.
+- La racha motiva a los estudiantes sin provocar ansiedad, competencia negativa o abandono después de perderla.
+- La retroalimentación inmediata mejora la comprensión y no se limita a indicar si una respuesta es correcta.
+- El profesor puede tomar una acción concreta a partir del reporte sin aumentar su carga de trabajo.
+- La familia puede acompañar la constancia sin convertirse en profesora ni supervisora permanente.
+- La experiencia funciona bajo las condiciones reales de dispositivos y conectividad de los usuarios.
+
+## Propuesta enfocada para validar
+
+- **Problema inicial:** falta de constancia, estudio pasivo y detección tardía de vacíos de aprendizaje.
+- **Usuario inicial propuesto:** estudiantes de 1.º o 2.º Básico, aproximadamente de 12 a 14 años.
+- **Actividad central:** micropráctica diaria de cinco minutos en el teléfono sobre una habilidad específica.
+- **Motivación:** progreso visible, reconocimiento del esfuerzo y una racha flexible de estudio.
+- **Resultado para el profesor:** reporte breve de estudiantes constantes, estudiantes inactivos y dificultades frecuentes.
+- **Resultado para la familia:** confirmación sencilla de la práctica y una recomendación concreta de acompañamiento.
+
+El contexto original parte de estudiantes de 15 años por los datos de PISA, mientras que la propuesta inicial se enfoca en estudiantes de 12 a 14 años. El equipo debe validar y elegir un solo segmento antes de cerrar el alcance del MVP.
+
 ## Usuarios
 
 ### Estudiantes
 
-- Adolescentes de aproximadamente 15 años.
+- Adolescentes de educación básica; inicialmente se propone trabajar con estudiantes de 1.º o 2.º Básico, aproximadamente de 12 a 14 años.
 - Realizan retos diarios de cinco minutos.
 - Reciben retroalimentación inmediata y específica.
 - Refuerzan sus debilidades sin repetir lo que ya dominan.
@@ -131,7 +173,7 @@ El primer producto debe resolver bien una situación pequeña antes de cubrir to
 
 - **Materia:** matemáticas.
 - **Habilidad inicial:** fracciones u otra habilidad específica por validar.
-- **Usuarios principales:** estudiantes de 15 años y su profesor.
+- **Usuarios principales:** estudiantes de 1.º o 2.º Básico y su profesor, sujeto a validación del segmento.
 - **Actividad:** diagnóstico y refuerzo diario de cinco minutos.
 - **Clasificación:** necesita apoyo, en progreso y domina.
 - **Retroalimentación:** inmediata, visual y específica para cada error.
