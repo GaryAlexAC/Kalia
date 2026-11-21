@@ -1,0 +1,10 @@
+{
+  "description": "A mobile learning app for students to watch short educational videos, follow teacher assignments, and learn with friends through chats, activities, and group challenges.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
