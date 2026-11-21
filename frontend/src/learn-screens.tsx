@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
+import type { Activity } from './api'
 import { Icon } from './icons'
 import {
   CLASSES, EXTRAS, QUESTIONS, TEMAS,
-  classmates, clock, interestFeed, rankVideos, topicStats, videoById, whyLine,
+  clock, interestFeed, rankVideos, topicStats, whyLine,
   type Assignment, type Attempt, type Filters, type Profile, type Video,
 } from './learn'
 
@@ -23,18 +24,19 @@ function Pills({ video, filters, onFilter }: { video: Pick<Video, 'materia' | 'g
   </div>
 }
 
-function FeedArt({ video }: { video: Video }) {
+function FeedArt({ video, player = true }: { video: Video; player?: boolean }) {
+  if (player && video.embedUrl) return <iframe className="feed-player" src={video.embedUrl} title={video.title} allow="fullscreen; autoplay; encrypted-media" allowFullScreen/>
   if (video.visual === 'science') return <img src="/science-lab.png" alt=""/>
   const symbol = video.visual === 'math' ? '½' : video.visual === 'percent' ? '10%' : video.visual === 'history' ? 'V' : 'x'
   return <div className="feed-art" aria-hidden="true">{symbol}<small>{video.tema}</small></div>
 }
 
-export function ParaTiFeed({ profile, onPractice }: { profile: Profile; onPractice: (video: Video) => void }) {
+export function ParaTiFeed({ profile, videos, onPractice }: { profile: Profile; videos: Video[]; onPractice: (video: Video) => void }) {
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [liked, setLiked] = useState<Record<string, boolean>>({})
   const [saved, setSaved] = useState<Record<string, boolean>>({})
   useEffect(() => { setFilters(emptyFilters) }, [profile.id])
-  const ranked = rankVideos(profile, filters)
+  const ranked = rankVideos(profile, filters, videos)
   const toggle = (kind: keyof Filters, value: string) => setFilters((prev) => ({ ...prev, [kind]: prev[kind] === value ? null : value }))
   const filtering = Boolean(filters.materia || filters.grado || filters.tema)
 
@@ -70,11 +72,11 @@ export function ParaTiFeed({ profile, onPractice }: { profile: Profile; onPracti
   </div>
 }
 
-export function InterestsFeed({ profile, temas, onEdit }: { profile: Profile; temas: string[]; onEdit: () => void }) {
+export function InterestsFeed({ profile, videos, temas, onEdit }: { profile: Profile; videos: Video[]; temas: string[]; onEdit: () => void }) {
   const [playing, setPlaying] = useState<string | null>(null)
   const [noted, setNoted] = useState<Record<string, boolean>>({})
   const [joined, setJoined] = useState<Record<string, boolean>>({})
-  const items = interestFeed(temas)
+  const items = interestFeed(temas, videos)
   return <div className="scroll-view interests-view">
     <div className="interests-sticky">
       <div className="interest-heading"><div><p>Aprendizaje autónomo guiado</p><h2>¿Qué tema te está costando esta semana?</h2></div><span><Icon name="sparkle" size={18}/></span></div>
@@ -90,7 +92,7 @@ export function InterestsFeed({ profile, temas, onEdit }: { profile: Profile; te
           const video = item.video
           return <article className="interest-video" key={video.id}>
             <button className={`interest-visual ${video.visual === 'science' ? 'science' : video.visual === 'history' ? 'history' : 'math'}`} onClick={() => setPlaying(playing === video.id ? null : video.id)} aria-label={playing === video.id ? 'Pausar video' : 'Reproducir video'}>
-              <FeedArt video={video}/>
+              <FeedArt video={video} player={false}/>
               <div className="interest-shade"/>
               <span className={`interest-play ${playing === video.id ? 'playing' : ''}`}>{playing === video.id ? <><i/><i/><i/></> : <Icon name="play" size={23} fill="currentColor"/>}</span>
               <small>{playing === video.id ? 'Reproduciendo' : clock(video.duration)}</small>
@@ -126,25 +128,25 @@ export function InterestsFeed({ profile, temas, onEdit }: { profile: Profile; te
   </div>
 }
 
-export function ClassesFeed({ profile, panel, onPanel, attempts, done, onSeen, onMicro }: {
+export function ClassesFeed({ profile, panel, onPanel, attempts, activities, completedActivityIds, onCompleteActivity }: {
   profile: Profile
   panel: boolean
   onPanel: (panel: boolean) => void
   attempts: Attempt[]
-  done: Record<string, { correct?: boolean }>
-  onSeen: (id: string) => void
-  onMicro: (id: string) => void
+  activities: Activity[]
+  completedActivityIds: Set<number>
+  onCompleteActivity: (activity: Activity) => void
 }) {
   const group = CLASSES[profile.classId]
-  const mates = classmates(profile)
   const stats = topicStats(group, attempts)
   const top = stats[0]
-  const finished = group.assignments.filter((item) => done[`${profile.id}:${item.id}`]).length
-  const pct = Math.round(finished / group.assignments.length * 100)
+  const total = activities.length
+  const finished = activities.filter((item) => completedActivityIds.has(item.id)).length
+  const pct = total ? Math.round(finished / total * 100) : 0
   return <div className="scroll-view padded">
     <section className="class-summary">
-      <div><span>{group.teacher} · {group.name}</span><h2>{panel ? 'Panel del aula' : 'Lista del grupo'}</h2></div>
-      <div className="progress-ring" style={{ background: `conic-gradient(var(--yellow) ${pct}%, rgba(255,255,255,.16) 0)` }}><b>{finished}/{group.assignments.length}</b></div>
+      <div><span>Academia Kalia</span><h2>{panel ? 'Panel del aula' : 'Lista del grupo'}</h2></div>
+       <div className="progress-ring" style={{ background: `conic-gradient(var(--yellow) ${pct}%, rgba(255,255,255,.16) 0)` }}><b>{finished}/{total}</b></div>
     </section>
     <div className="status-filter">
       <button className={!panel ? 'active' : ''} onClick={() => onPanel(false)}>Mi lista</button>
@@ -165,20 +167,16 @@ export function ClassesFeed({ profile, panel, onPanel, attempts, done, onSeen, o
       <div className="topic-rows">{stats.slice(1).map((topic) => <div className="topic-row" key={topic.skill}><strong>{topic.label}</strong><p>{topic.wrong} de {topic.total} entregas</p><div className="small-progress"><span style={{ width: `${Math.round(topic.ratio * 100)}%` }}/></div></div>)}</div>
       <p className="panel-note">Sin ranking de estudiantes. El panel muestra el tema en el que falló la mayoría.</p>
     </section> : <>
-      <p className="panel-note">{mates.length ? `${mates.map((mate) => mate.name).join(' y ')} ${mates.length === 1 ? 've esta misma lista' : 'ven esta misma lista'}.` : `Esta es la lista de todo ${group.name}.`} El orden lo puso {group.teacher}.</p>
-      <div className="teacher-line"><div className={`mini-avatar ${group.avatar}`}>{group.teacherInitials}</div><div><b>{group.teacher}</b><span>{group.name}</span></div></div>
-      {group.assignments.map((item, index) => {
-        const video = item.kind === 'video' ? videoById(item.videoId) : null
-        const record = done[`${profile.id}:${item.id}`]
-        const title = item.kind === 'video' ? videoById(item.videoId).title : item.title
-        const meta = item.kind === 'video' ? videoById(item.videoId) : item
-        return <article className={`assignment-card${index === 0 ? ' is-first' : ''}`} key={item.id}>
-          <div className="assignment-top"><span className="kind">{index + 1} · {item.kind === 'video' ? `Video · ${clock(video!.duration)}` : 'Micro-actividad · 5 min'}</span><span className="status">{record ? (record.correct === false ? 'Entregada · puedes repetir' : item.kind === 'video' ? 'Visto' : 'Entregada') : 'Por hacer'}</span></div>
-          <h3>{title}</h3>
-          <Pills video={meta}/>
-          {item.kind === 'video' ? <button className="primary-btn" onClick={() => onSeen(item.id)}>{record ? 'Visto' : 'Marcar como visto'}</button> : <button className="primary-btn" onClick={() => onMicro(item.id)}>{record ? 'Repetir actividad' : 'Hacer actividad'}</button>}
+      {activities.length > 0 ? activities.map((activity, index) => {
+        const completed = completedActivityIds.has(activity.id)
+        const materia = activity.materia === 'MATEMATICAS' ? 'Matemáticas' : activity.materia === 'LECTURA' ? 'Lectura' : 'Ciencias'
+        return <article className={`assignment-card${index === 0 ? ' is-first' : ''}`} key={activity.id}>
+          <div className="assignment-top"><span className="kind">{index + 1} · Actividad</span><span className="status">{completed ? 'Entregada' : 'Por hacer'}</span></div>
+          <h3>{activity.titulo}</h3>
+          <Pills video={{ materia, grado: null, tema: materia }}/>
+          <button className="primary-btn" onClick={() => onCompleteActivity(activity)}>{completed ? 'Repetir actividad' : 'Completar actividad'}</button>
         </article>
-      })}
+      }) : <div className="filter-empty"><span>?</span><h3>Aún no hay actividades</h3><p>Cuando el catálogo de la academia esté disponible, aparecerá aquí.</p></div>}
     </>}
   </div>
 }

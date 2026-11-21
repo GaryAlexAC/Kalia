@@ -18,6 +18,8 @@ export type Video = {
   skill: Skill
   duration: number
   visual: 'science' | 'math' | 'history' | 'percent' | 'equation'
+  embedUrl?: string
+  sourceUrl?: string
 }
 
 export type Profile = {
@@ -266,8 +268,8 @@ function tier(video: Video, profile: Profile) {
   return 1
 }
 
-export function rankVideos(profile: Profile, filters: Filters) {
-  return VIDEOS.filter((video) => {
+export function rankVideos(profile: Profile, filters: Filters, videos: Video[] = VIDEOS) {
+  return videos.filter((video) => {
     if (filters.materia && video.materia !== filters.materia) return false
     if (filters.grado && video.grado !== filters.grado) return false
     if (filters.tema && video.tema !== filters.tema) return false
@@ -284,14 +286,14 @@ export function whyLine(video: Video, profile: Profile) {
   return `${time} · después de tus lagunas${grade}`
 }
 
-export function interestFeed(temas: string[]): FeedItem[] {
+export function interestFeed(temas: string[], videos: Video[] = VIDEOS): FeedItem[] {
   const items: FeedItem[] = []
   for (const tema of temas) {
-    const videos = VIDEOS.filter((video) => video.tema === tema).sort((a, b) => a.duration - b.duration)
-    videos.forEach((video, index) => {
+    const topicVideos = videos.filter((video) => video.tema === tema).sort((a, b) => a.duration - b.duration)
+    topicVideos.forEach((video, index) => {
       items.push({ type: 'video', video })
       if (index === 0) items.push({ type: 'reto', tema })
-      if (index === videos.length - 1) items.push({ type: 'circulo', tema })
+      if (index === topicVideos.length - 1) items.push({ type: 'circulo', tema })
     })
   }
   return items

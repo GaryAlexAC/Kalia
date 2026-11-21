@@ -13,6 +13,17 @@ try {
   const health = await fetch(`${baseUrl}/health`);
   if (!health.ok) throw new Error("La comprobación de salud falló.");
 
+  const preflight = await fetch(`${baseUrl}/api/auth/login`, {
+    method: "OPTIONS",
+    headers: {
+      origin: "http://localhost:5173",
+      "access-control-request-method": "POST",
+    },
+  });
+  if (preflight.headers.get("access-control-allow-origin") !== "http://localhost:5173") {
+    throw new Error("CORS no permite conectar el frontend Vite.");
+  }
+
   const activities = await fetch(`${baseUrl}/api/actividades`).then((response) => response.json());
   if (!Array.isArray(activities) || activities.length !== 12) {
     throw new Error("El catálogo no contiene 12 actividades.");

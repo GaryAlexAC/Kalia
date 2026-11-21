@@ -1,11 +1,96 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import kaliaLogo from './assets/kalia-logo.png'
+import { AuthScreen } from './auth-screen'
+import {
+  ApiError, TOKEN_STORAGE_KEY, clearToken, completeActivity, getActivities,
+  getCurrentStudent, getProgress, getRanking, getStoredSessionExpiry,
+  getStoredToken, getStudentBadges, getVideos, reviewStudentBadges,
+  storeToken, type Activity, type ApiVideo, type AuthSession, type AuthStudent,
+  type EarnedBadge, type Progress, type RankingEntry,
+} from './api'
 import { Icon, type IconName } from './icons'
 import { ClassesFeed, InterestsFeed, MicroSheet, ParaTiFeed, PracticeSheet, TopicPicker } from './learn-screens'
 import { ParentHome, TeacherHome, TutorRoleHome } from './role-screens'
-import { CLASSES, ROLE_NAV_TITLE, TUTOR_REGISTER_STEPS, profileById, videoById, type Attempt, type HomeTab, type UserRole } from './learn'
+import { CLASSES, ROLE_NAV_TITLE, TUTOR_REGISTER_STEPS, VIDEOS, profileById, type Attempt, type HomeTab, type Skill, type UserRole, type Video } from './learn'
+import { VideoCreateForm } from './video-create-form'
+
+const ACTIVITY_XP = 50
 
 type MainView = 'home' | 'community' | 'create' | 'messages' | 'profile'
+
+function mapVideo(video: ApiVideo): Video {
+  const terms = `${video.title} ${video.topic ?? ''} ${video.category}`.toLowerCase()
+  let skill: Skill = 'frac-suma'
+  if (terms.includes('densidad') || terms.includes('ciencia')) skill = 'densidad'
+  else if (terms.includes('decimal')) skill = 'decimales'
+  else if (terms.includes('ecuaci')) skill = 'ecuaciones'
+  else if (terms.includes('porcent')) skill = 'porcentajes'
+  else if (terms.includes('roma') || terms.includes('historia')) skill = 'roma'
+  const visual: Video['visual'] = skill === 'densidad' ? 'science' : skill === 'roma' ? 'history' : skill === 'porcentajes' ? 'percent' : skill === 'ecuaciones' || skill === 'decimales' ? 'equation' : 'math'
+  return {
+    id: video.id,
+    title: video.title,
+    text: video.description ?? 'Contenido educativo de Kalia.',
+    creator: '@kalia',
+    materia: video.category,
+    grado: null,
+    tema: video.topic ?? video.category,
+    skill,
+    duration: video.durationSeconds ?? 60,
+    visual,
+    embedUrl: video.embedUrl,
+    sourceUrl: video.sourceUrl,
+  }
+}
+
+function isAuthFailure(error: unknown) {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403)
+}
+
+function materiaLabel(materia: Activity['materia']) {
+  return materia === 'MATEMATICAS' ? 'Matemáticas' : materia === 'LECTURA' ? 'Lectura' : 'Ciencias'
+}
+
+function materiaTone(materia: Activity['materia']): 'lavender' | 'yellow' | 'coral' {
+  return materia === 'MATEMATICAS' ? 'lavender' : materia === 'LECTURA' ? 'yellow' : 'coral'
+}
+
+function nivelLabel(nivel: AuthStudent['nivel']) {
+  return nivel === 'EXPLORADORES' ? 'Exploradores' : nivel === 'CONSTRUCTORES' ? 'Constructores' : 'Avanzados'
+}
+
+function formatCompletedAt(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Completada'
+  return new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' }).format(date)
+}
+
+function developedActivities(progress: Progress[]) {
+  const byActivity = new Map<number, Progress & { veces: number; xpAcumulado: number }>()
+  for (const item of progress) {
+    const current = byActivity.get(item.actividadId)
+    if (!current) {
+      byActivity.set(item.actividadId, { ...item, veces: 1, xpAcumulado: item.xp })
+      continue
+    }
+    current.veces += 1
+    current.xpAcumulado += item.xp
+  }
+  return [...byActivity.values()]
+}
+
+function profileFromStudent(student: AuthStudent) {
+  const base = profileById('vale')
+  const initials = student.nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || base.initials
+  return {
+    ...base,
+    name: student.nombre,
+    handle: `@${student.email.split('@')[0]}`,
+    initials,
+    gradeLabel: nivelLabel(student.nivel),
+    xp: student.xpTotal,
+  }
+}
 
 const nav: { id: MainView; label: string; icon: IconName }[] = [
   { id: 'home', label: 'Inicio', icon: 'home' },
@@ -49,28 +134,29 @@ function Tag({ children, tone = 'lavender' }: { children: React.ReactNode; tone?
   return <span className={`tag ${tone}`}>{children}</span>
 }
 
-function Home({ dark, onToggle, tab, onTab, profile, temas, panel, onPanel, attempts, done, onSeen, onMicro, onPractice, onEdit }: {
+function Home({ dark, onToggle, tab, onTab, profile, videos, activities, completedActivityIds, temas, panel, onPanel, attempts, onPractice, onCompleteActivity, onEdit }: {
   dark: boolean
   onToggle: () => void
   tab: HomeTab
   onTab: (tab: HomeTab) => void
   profile: ReturnType<typeof profileById>
+  videos: Video[]
+  activities: Activity[]
+  completedActivityIds: Set<number>
   temas: string[]
   panel: boolean
   onPanel: (panel: boolean) => void
   attempts: Attempt[]
-  done: Record<string, { correct?: boolean }>
-  onSeen: (id: string) => void
-  onMicro: (id: string) => void
   onPractice: (id: string) => void
+  onCompleteActivity: (activity: Activity) => void
   onEdit: () => void
 }) {
   return <div className={`view home-view ${tab === 'Para ti' ? 'immersive' : ''}`}>
     <TopBar dark={dark} onToggle={onToggle}/>
     <div className="home-tabs"><Segmented options={['Para ti', 'Intereses', 'Clases']} value={tab} onChange={(value) => onTab(value as HomeTab)}/></div>
-    {tab === 'Para ti' && <ParaTiFeed profile={profile} onPractice={(video) => onPractice(video.id)}/>}
-    {tab === 'Intereses' && <InterestsFeed profile={profile} temas={temas} onEdit={onEdit}/>}
-    {tab === 'Clases' && <ClassesFeed profile={profile} panel={panel} onPanel={onPanel} attempts={attempts} done={done} onSeen={onSeen} onMicro={onMicro}/>}
+    {tab === 'Para ti' && <ParaTiFeed profile={profile} videos={videos} onPractice={(video) => onPractice(video.id)}/>} 
+    {tab === 'Intereses' && <InterestsFeed profile={profile} videos={videos} temas={temas} onEdit={onEdit}/>} 
+    {tab === 'Clases' && <ClassesFeed profile={profile} activities={activities} completedActivityIds={completedActivityIds} panel={panel} onPanel={onPanel} attempts={attempts} onCompleteActivity={onCompleteActivity}/>} 
   </div>
 }
 
@@ -86,8 +172,9 @@ function Mascot() {
   </div>
 }
 
-function Community({ dark, onToggle, goMessages }: { dark: boolean; onToggle: () => void; goMessages: () => void }) {
+function Community({ dark, onToggle, goMessages, ranking }: { dark: boolean; onToggle: () => void; goMessages: () => void; ranking: RankingEntry[] }) {
   const [tab, setTab] = useState('Amigos')
+  const [showRanking, setShowRanking] = useState(false)
   return <div className="view">
     <TopBar title="Comunidad" dark={dark} onToggle={onToggle}/>
     <div className="page-tabs"><Segmented options={['Amigos', 'Sociales']} value={tab} onChange={setTab}/></div>
@@ -107,10 +194,11 @@ function Community({ dark, onToggle, goMessages }: { dark: boolean; onToggle: ()
           </div>
         </section>
         <section>
-          <div className="section-head"><h3>Reto del grupo</h3><button>Tabla</button></div>
+          <div className="section-head"><h3>Reto del grupo</h3><button onClick={() => setShowRanking((value) => !value)}>Tabla</button></div>
           <div className="challenge-card">
             <div className="challenge-icon"><Icon name="sparkle"/></div><div><span>CIERRA EL CICLO</span><h3>Reto de ciencias</h3><p>18 de 24 actividades · quedan 2 días</p><div className="small-progress"><span style={{width: '75%'}}/></div></div>
           </div>
+          {showRanking && <div className="ranking-list">{ranking.map((entry, index) => <div key={`${entry.nombre}-${index}`}><b>{index + 1}</b><span>{entry.nombre}</span><strong>{entry.xpTotal} XP</strong></div>)}</div>}
         </section>
         <button className="recover-card"><span><Icon name="fire"/></span><div><b>¿Perdieron una racha?</b><small>Recupérenla completando una actividad juntos.</small></div><Icon name="chevron"/></button>
       </> : <>
@@ -163,7 +251,8 @@ function Messages({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
   </div>
 }
 
-function Profile({ dark, onToggle, profile, temas, onEdit }: { dark: boolean; onToggle: () => void; profile: ReturnType<typeof profileById>; temas: string[]; onEdit: () => void }) {
+function Profile({ dark, onToggle, profile, badges, progress, temas, onEdit, onLogout }: { dark: boolean; onToggle: () => void; profile: ReturnType<typeof profileById>; badges: EarnedBadge[]; progress: Progress[]; temas: string[]; onEdit: () => void; onLogout: () => void }) {
+  const developed = developedActivities(progress)
   return <div className="view">
     <TopBar title="Mi perfil" dark={dark} onToggle={onToggle}/>
     <div className="scroll-view profile-content">
@@ -176,14 +265,25 @@ function Profile({ dark, onToggle, profile, temas, onEdit }: { dark: boolean; on
       <div className="padded profile-sections">
         <section><div className="section-head"><h3>Esta semana</h3><button onClick={onEdit}>Cambiar</button></div><div className="interest-tags">{temas.length ? temas.map((tema) => <Tag tone="yellow" key={tema}>{tema}</Tag>) : <Tag tone="neutral">Sin tema elegido</Tag>}</div></section>
         <section className="learning-card"><div className="learning-top"><div><span>PROGRESO SEMANAL</span><h3>4 h 20 min aprendiendo</h3></div><div className="trend">+18%</div></div><div className="bars">{[45,70,55,90,75,35,20].map((h,i)=><div key={i}><i style={{height: `${h}%`}}/><span>{'LMXJVSD'[i]}</span></div>)}</div></section>
+        <section>
+          <div className="section-head"><h3>Actividades desarrolladas</h3><span className="count">{developed.length}</span></div>
+          {developed.length ? <div className="progress-activity-list">{developed.map((item) => {
+            const materia = item.actividad?.materia ?? 'MATEMATICAS'
+            return <article className="assignment-card progress-activity-card" key={item.actividadId}>
+              <div className="assignment-top"><span className="kind"><Icon name="check" size={13}/> Entregada{item.veces > 1 ? ` · ${item.veces} veces` : ''}</span><span className="status">+{item.xpAcumulado} XP</span></div>
+              <h3>{item.actividad?.titulo ?? 'Actividad'}</h3>
+              <div className="interest-tags"><Tag tone={materiaTone(materia)}>{materiaLabel(materia)}</Tag><Tag tone="neutral">{nivelLabel(item.nivel)}</Tag></div>
+              <p>{formatCompletedAt(item.completadoEn)}</p>
+            </article>
+          })}</div> : <div className="filter-empty"><span>✓</span><h3>Todavía no hay entregas</h3><p>Completa una actividad en Clases y aparecerá aquí.</p></div>}
+        </section>
         <section><div className="section-head"><h3>Insignias</h3><button>Ver todas</button></div><div className="badges">
-          <div><span className="badge sun-badge"><Icon name="sun"/></span><b>Curiosidad</b><small>50 videos</small></div>
-          <div><span className="badge streak-badge"><Icon name="fire" fill="currentColor"/></span><b>En llamas</b><small>Racha de 10</small></div>
-          <div><span className="badge team-badge"><Icon name="community"/></span><b>En equipo</b><small>5 retos</small></div>
+          {badges.length ? badges.slice(0, 3).map((badge, index) => <div key={badge.id}><span className={`badge ${index === 0 ? 'sun-badge' : index === 1 ? 'streak-badge' : 'team-badge'}`}><Icon name={index === 0 ? 'sun' : index === 1 ? 'fire' : 'community'} fill={index === 1 ? 'currentColor' : undefined}/></span><b>{badge.nombre}</b><small>{badge.descripcion}</small></div>) : <div><span className="badge sun-badge"><Icon name="sparkle"/></span><b>Tu primera insignia</b><small>Completa actividades para conseguirla.</small></div>}
         </div></section>
         <section className="settings-list">
           <button><span><Icon name="settings"/></span><b>Configuración</b><Icon name="chevron"/></button>
           <button><span><Icon name="lock"/></span><b>Privacidad y seguridad</b><Icon name="chevron"/></button>
+          <button onClick={onLogout}><span><Icon name="arrow"/></span><b>Cerrar sesión</b><Icon name="chevron"/></button>
           <div className="theme-setting"><span><Icon name={dark ? 'moon' : 'sun'}/></span><div><b>Apariencia</b><small>{dark ? 'Modo noche' : 'Modo día'}</small></div><ThemeToggle dark={dark} onToggle={onToggle}/></div>
         </section>
       </div>
@@ -191,11 +291,11 @@ function Profile({ dark, onToggle, profile, temas, onEdit }: { dark: boolean; on
   </div>
 }
 
-function Explore({ back }: { back: () => void }) {
+function Explore({ back, onCreateVideo }: { back: () => void; onCreateVideo: () => void }) {
   return <div className="view create-overlay">
     <div className="explore-head"><div><span>CREA Y DESCUBRE</span><h1>¿Qué quieres hacer?</h1></div><button onClick={back}>Cerrar</button></div>
     <div className="create-options">
-      <button className="create-card coral-option"><span><Icon name="video" size={30}/></span><div><small>COMPARTIR</small><h2>Crear un video</h2><p>Explica algo que aprendiste en menos de 3 minutos.</p></div><Icon name="chevron"/></button>
+      <button className="create-card coral-option" onClick={onCreateVideo}><span><Icon name="video" size={30}/></span><div><small>COMPARTIR</small><h2>Crear un video</h2><p>Explica algo que aprendiste en menos de 3 minutos.</p></div><Icon name="chevron"/></button>
       <button className="create-card lavender-option"><span><Icon name="search" size={30}/></span><div><small>DESCUBRIR</small><h2>Explorar temas</h2><p>Encuentra videos, actividades y comunidades.</p></div><Icon name="chevron"/></button>
       <button className="create-card yellow-option"><span><Icon name="sparkle" size={30}/></span><div><small>EN EQUIPO</small><h2>Iniciar un reto</h2><p>Invita a tus amigos a aprender algo nuevo.</p></div><Icon name="chevron"/></button>
     </div>
@@ -234,14 +334,13 @@ export default function App() {
   /** Sustituir por sesión tras login (alumno, maestro, padre, tutor). */
   const userRole: UserRole = 'alumno'
   const [view, setView] = useState<MainView>('home')
+  const [student, setStudent] = useState<AuthStudent | null | undefined>(undefined)
   const [lastView, setLastView] = useState<MainView>('home')
   const [dark, setDark] = useState(false)
   const [tutorLive, setTutorLive] = useState(false)
   const [tutorRegistered, setTutorRegistered] = useState(false)
   const [tutorRegisterStep, setTutorRegisterStep] = useState(0)
   const [tutorUploads, setTutorUploads] = useState<Record<string, boolean>>({})
-  /** Sustituir por id del usuario autenticado. */
-  const [profileId] = useState('vale')
   const [interestOverrides, setInterestOverrides] = useState<Record<string, string[]>>({})
   const [attempts, setAttempts] = useState<Attempt[]>([])
   const [done, setDone] = useState<Record<string, { correct?: boolean }>>({})
@@ -250,28 +349,168 @@ export default function App() {
   const [practiceId, setPracticeId] = useState<string | null>(null)
   const [microId, setMicroId] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const profile = profileById(profileId)
+  const [creatingVideo, setCreatingVideo] = useState(false)
+  const [contentEpoch, setContentEpoch] = useState(0)
+  const [feedVideos, setFeedVideos] = useState<Video[]>(VIDEOS)
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [completedActivityIds, setCompletedActivityIds] = useState<Set<number>>(new Set())
+  const [progress, setProgress] = useState<Progress[]>([])
+  const [badges, setBadges] = useState<EarnedBadge[]>([])
+  const [ranking, setRanking] = useState<RankingEntry[]>([])
+  useEffect(() => {
+    const token = getStoredToken()
+    if (!token) {
+      setStudent(null)
+      return
+    }
+    getCurrentStudent(token)
+      .then(setStudent)
+      .catch((error) => {
+        if (error instanceof ApiError && error.status === 401) clearToken()
+        setStudent(null)
+      })
+  }, [])
+
+  useEffect(() => {
+    const synchronizeSession = (event: StorageEvent) => {
+      if (event.key !== TOKEN_STORAGE_KEY) return
+      const token = getStoredToken()
+      if (!token) {
+        setStudent(null)
+        return
+      }
+      getCurrentStudent(token).then(setStudent).catch(() => setStudent(null))
+    }
+    window.addEventListener('storage', synchronizeSession)
+    return () => window.removeEventListener('storage', synchronizeSession)
+  }, [])
+
+  useEffect(() => {
+    if (!student) return
+    const expiresAt = getStoredSessionExpiry()
+    if (!expiresAt) return
+    const timeout = window.setTimeout(() => {
+      clearToken()
+      setStudent(null)
+    }, Math.max(0, expiresAt - Date.now()))
+    return () => window.clearTimeout(timeout)
+  }, [student])
+
+  useEffect(() => {
+    if (!student) return
+    const token = getStoredToken()
+    if (!token) return
+    let cancelled = false
+
+    const load = async () => {
+      await reviewStudentBadges(student.id, token).catch(() => null)
+      if (cancelled) return
+      const [videosResult, activitiesResult, progressResult, badgesResult, rankingResult] = await Promise.allSettled([
+        getVideos(20),
+        getActivities(),
+        getProgress(student.id, token),
+        getStudentBadges(student.id, token),
+        getRanking(),
+      ])
+      if (cancelled) return
+
+      const authFailed = [progressResult, badgesResult].some((result) => result.status === 'rejected' && isAuthFailure(result.reason))
+      if (authFailed) {
+        clearToken()
+        setStudent(null)
+        return
+      }
+
+      if (videosResult.status === 'fulfilled' && videosResult.value.items.length) {
+        setFeedVideos(videosResult.value.items.map(mapVideo))
+      } else {
+        setFeedVideos(VIDEOS)
+      }
+      if (activitiesResult.status === 'fulfilled') setActivities(activitiesResult.value)
+      if (progressResult.status === 'fulfilled') {
+        setProgress(progressResult.value)
+        setCompletedActivityIds(new Set(progressResult.value.map((item) => item.actividadId)))
+      }
+      if (badgesResult.status === 'fulfilled') setBadges(badgesResult.value.obtenidas)
+      if (rankingResult.status === 'fulfilled') setRanking(rankingResult.value)
+    }
+
+    void load()
+    return () => { cancelled = true }
+  }, [student?.id, contentEpoch])
+
+  const authenticated = (session: AuthSession) => {
+    storeToken(session.accessToken, session.expiresIn)
+    setStudent(session.estudiante)
+  }
+  const logout = () => {
+    clearToken()
+    setStudent(null)
+    setView('home')
+    setCreatingVideo(false)
+    setActivities([])
+    setCompletedActivityIds(new Set())
+    setProgress([])
+    setBadges([])
+    setRanking([])
+    setFeedVideos(VIDEOS)
+  }
+
+  if (student === undefined) return <main className={dark ? 'app-shell dark' : 'app-shell'}><div className="phone-frame"><div className="auth-loading">Cargando Kalia…</div></div></main>
+  if (student === null) return <main className={dark ? 'app-shell dark' : 'app-shell'}><div className="phone-frame"><AuthScreen onAuthenticated={authenticated}/></div></main>
+
+  const profile = profileFromStudent(student)
   const temas = interestOverrides[profile.id] ?? profile.interests
   const group = CLASSES[profile.classId]
   const micro = group.assignments.find((item) => item.id === microId && item.kind === 'micro')
-  const navigate = (next: MainView) => { if (next !== 'create') setLastView(next); setView(next) }
+  const practiceVideo = practiceId ? feedVideos.find((video) => video.id === practiceId) : undefined
+  const navigate = (next: MainView) => { if (next !== 'create') setLastView(next); setView(next); if (next !== 'create') setCreatingVideo(false) }
   const toggleTutorUpload = (id: string) => setTutorUploads((prev) => ({ ...prev, [id]: !prev[id] }))
   const submitMicro = (correct: boolean) => {
     if (!micro || micro.kind !== 'micro') return
     setAttempts((prev) => [...prev.filter((item) => !(item.classId === group.id && item.profileId === profile.id && item.skill === micro.skill)), { classId: group.id, profileId: profile.id, skill: micro.skill, correct }])
     setDone((prev) => ({ ...prev, [`${profile.id}:${micro.id}`]: { correct } }))
   }
+  const handleCompleteActivity = async (activity: Activity) => {
+    const token = getStoredToken()
+    if (!token) return
+    try {
+      const result = await completeActivity({
+        estudianteId: student.id,
+        actividad: activity.slug,
+        nivel: student.nivel,
+        xp: ACTIVITY_XP,
+      }, token)
+      setCompletedActivityIds((prev) => new Set(prev).add(activity.id))
+      setProgress((prev) => [{
+        ...result.progreso,
+        actividad: result.progreso.actividad ?? { titulo: activity.titulo, materia: activity.materia },
+      }, ...prev.filter((item) => item.id !== result.progreso.id)])
+      setStudent(await getCurrentStudent(token))
+      if (result.insigniasNuevas.length) {
+        const nextBadges = await getStudentBadges(student.id, token)
+        setBadges(nextBadges.obtenidas)
+      }
+      setRanking(await getRanking())
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        clearToken()
+        setStudent(null)
+      }
+    }
+  }
   const isStudent = userRole === 'alumno'
   return <main className={dark ? 'app-shell dark' : 'app-shell'}>
     <div className="phone-frame" data-profile={profile.id} data-role={userRole} data-tab={tab}>
-      {view === 'home' && isStudent && <Home dark={dark} onToggle={() => setDark(!dark)} tab={tab} onTab={(next) => { setTab(next); setClassPanel(false) }} profile={profile} temas={temas} panel={classPanel} onPanel={setClassPanel} attempts={attempts} done={done} onSeen={(id) => setDone((prev) => ({ ...prev, [`${profile.id}:${id}`]: {} }))} onMicro={setMicroId} onPractice={setPracticeId} onEdit={() => { setPickerOpen(true); setView('home'); setTab('Intereses') }}/>}
+      {view === 'home' && isStudent && <Home dark={dark} onToggle={() => setDark(!dark)} tab={tab} onTab={(next) => { setTab(next); setClassPanel(false) }} profile={profile} videos={feedVideos} activities={activities} completedActivityIds={completedActivityIds} temas={temas} panel={classPanel} onPanel={setClassPanel} attempts={attempts} onPractice={setPracticeId} onCompleteActivity={(activity) => { void handleCompleteActivity(activity) }} onEdit={() => { setPickerOpen(true); setView('home'); setTab('Intereses') }}/>}
       {view === 'home' && !isStudent && <RoleShell dark={dark} onToggle={() => setDark(!dark)} role={userRole} attempts={attempts} tutorLive={tutorLive} onTutorToggle={() => setTutorLive((v) => !v)} tutorRegistered={tutorRegistered} tutorRegisterStep={tutorRegisterStep} tutorUploads={tutorUploads} onTutorUpload={toggleTutorUpload} onTutorRegNext={() => setTutorRegisterStep((s) => Math.min(s + 1, TUTOR_REGISTER_STEPS.length - 1))} onTutorRegPrev={() => setTutorRegisterStep((s) => Math.max(s - 1, 0))} onTutorRegSubmit={() => setTutorRegistered(true)} onTutorRegReset={() => { setTutorRegistered(false); setTutorRegisterStep(0); setTutorUploads({}); setTutorLive(false) }}/>}
-      {view === 'community' && <Community dark={dark} onToggle={() => setDark(!dark)} goMessages={() => navigate('messages')}/>}
+      {view === 'community' && <Community dark={dark} onToggle={() => setDark(!dark)} goMessages={() => navigate('messages')} ranking={ranking}/>}
       {view === 'messages' && <Messages dark={dark} onToggle={() => setDark(!dark)}/>}
-      {view === 'profile' && <Profile dark={dark} onToggle={() => setDark(!dark)} profile={profile} temas={temas} onEdit={() => { setPickerOpen(true); setView('home'); setTab('Intereses') }}/>}
-      {view === 'create' && <Explore back={() => setView(lastView)}/>}
+      {view === 'profile' && <Profile dark={dark} onToggle={() => setDark(!dark)} profile={profile} badges={badges} progress={progress} temas={temas} onEdit={() => { setPickerOpen(true); setView('home'); setTab('Intereses') }} onLogout={logout}/>}
+      {view === 'create' && creatingVideo && <VideoCreateForm onClose={() => setCreatingVideo(false)} onCreated={() => { setCreatingVideo(false); setContentEpoch((value) => value + 1) }}/>}
+      {view === 'create' && !creatingVideo && <Explore back={() => setView(lastView)} onCreateVideo={() => setCreatingVideo(true)}/>}
       {view !== 'create' && isStudent && <BottomNav active={view} onChange={navigate}/>}
-      {practiceId && <PracticeSheet video={videoById(practiceId)} onClose={() => setPracticeId(null)}/>}
+      {practiceVideo && <PracticeSheet video={practiceVideo} onClose={() => setPracticeId(null)}/>}
       {micro && micro.kind === 'micro' && <MicroSheet item={micro} onClose={() => setMicroId(null)} onSubmit={submitMicro} onOpenPanel={() => { setMicroId(null); setView('home'); setTab('Clases'); setClassPanel(true) }}/>}
       {pickerOpen && <TopicPicker selected={temas} onClose={() => setPickerOpen(false)} onSave={(next) => { setInterestOverrides((prev) => ({ ...prev, [profile.id]: next })); setPickerOpen(false); setView('home'); setTab('Intereses') }}/>}
     </div>
