@@ -2,6 +2,10 @@
 
 ## Idea general y bases del producto
 
+- **Solución definida por el equipo:** ayudar a mejorar las bajas calificaciones mediante la creación de un microhábito de práctica diaria.
+- **Enfoque:** dividir el refuerzo educativo en actividades pequeñas para que los estudiantes no se sientan abrumados y puedan practicarlas todos los días.
+- **Cambio esperado:** pasar del estudio acumulado y ocasional a una rutina breve, constante y sostenible.
+- **Hipótesis principal:** si el estudiante realiza una micropráctica diaria, recibe retroalimentación y refuerza sus dificultades a tiempo, aumentará su dominio de las habilidades y esto podrá reflejarse en mejores calificaciones.
 - **Qué es:** una plataforma educativa de refuerzo diario para estudiantes que pueden estar acumulando pequeños vacíos de aprendizaje.
 - **Problema principal:** las dificultades pequeñas pueden pasar desapercibidas hasta convertirse en rezago y afectar el aprendizaje de temas posteriores.
 - **Idea central:** transformar el repaso en una actividad breve, constante y fácil de realizar desde un teléfono.
@@ -49,6 +53,8 @@ La experiencia central consiste en una práctica diaria de aproximadamente cinco
 
 ## Propuesta de valor
 
+02Track ayuda a estudiantes con bajo rendimiento a construir un microhábito de práctica diaria mediante actividades de cinco minutos que reducen el agobio, refuerzan habilidades concretas y permiten detectar dificultades antes de que afecten sus siguientes evaluaciones.
+
 ### Para el estudiante
 
 Practica una habilidad durante cinco minutos, comprende sus errores y mantiene una rutina de aprendizaje sin esperar hasta el día del examen.
@@ -65,6 +71,8 @@ Acompaña la constancia del estudiante sin tener que dominar la materia ni conve
 
 | Reto | Consecuencia actual | Respuesta propuesta de 02Track |
 | --- | --- | --- |
+| Bajas calificaciones | El resultado refleja dificultades acumuladas que no fueron atendidas a tiempo. | Microprácticas dirigidas a las habilidades que requieren refuerzo. |
+| Actividades abrumadoras | El estudiante posterga o abandona una práctica que percibe como extensa o difícil. | Actividades pequeñas, claras y posibles de completar diariamente. |
 | Acumulación de pequeños vacíos | El estudiante avanza a nuevos temas sin dominar los anteriores. | Microprácticas frecuentes y detección temprana de errores. |
 | Falta de constancia | El estudiante practica solamente antes de una evaluación. | Rutina diaria breve, recordatorios y una racha flexible. |
 | Estudio pasivo | Leer o memorizar no permite comprobar la comprensión. | Retos de recuperación activa con respuestas observables. |

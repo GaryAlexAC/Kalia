@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Video {
+  id              String   @id @db.Uuid
+  title           String   @db.VarChar(160)
+  description     String?  @db.Text
+  category        String   @db.VarChar(80)
+  topic           String?  @db.VarChar(120)
+  tiktokVideoId   String   @unique @map("tiktok_video_id") @db.VarChar(32)
+  sourceUrl       String   @unique @map("source_url") @db.VarChar(1024)
+  durationSeconds Int?     @map("duration_seconds")
+  published       Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([published, createdAt])
+  @@map("videos")
+}

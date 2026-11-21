@@ -29,9 +29,11 @@ Detrás de estos resultados existen cuatro problemas principales:
 
 ## Propuesta de valor
 
-02Track identifica una dificultad concreta, asigna una práctica breve y muestra al profesor quién necesita apoyo antes de que se quede atrás.
+02Track busca ayudar a mejorar las bajas calificaciones mediante la creación de un microhábito de práctica diaria. Divide el refuerzo en actividades pequeñas para que los estudiantes no se sientan abrumados, puedan practicar todos los días y atiendan sus dificultades antes de que se acumulen.
 
 La plataforma ofrece sesiones diarias de aproximadamente cinco minutos, retroalimentación inmediata y agrupación por habilidades. No pretende reemplazar al profesor, sino ayudarlo a convertir una clase numerosa en grupos accionables y ofrecer refuerzo personalizado sin revisar manualmente cada ejercicio.
+
+La hipótesis principal es que una práctica breve y constante, acompañada de retroalimentación, puede fortalecer el dominio de habilidades y contribuir a mejorar las calificaciones. El equipo deberá validar esta relación, ya que una calificación también puede verse afectada por factores distintos a la frecuencia de práctica.
 
 ## El hábito como mecanismo de intervención
 
